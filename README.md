@@ -42,7 +42,7 @@ are read and only **master** branch changes are taken to account.
 
 The command receives some arguments, for example:
 
-``` sh
+``` bash
 #!/bin/sh
 
 USERNAME=$1
