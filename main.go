@@ -25,6 +25,12 @@ type payload struct {
 	Commit struct {
 		ID, Message, Timestamp string
 	} `json:"head_commit"`
+	Repository struct {
+		Name  string
+		Owner struct {
+			Name string
+		}
+	}
 }
 
 type app struct {
@@ -62,7 +68,11 @@ func load(args []string) *app {
 
 	log.Println("note, that every path og webhook, needs to have id - loaded webhooks:")
 	for _, h := range a.Webhooks {
-		log.Println("  ->", h.ID, "-", h.Command.Exec, "at", h.Command.Workdir)
+		parts := strings.Split(h.Repository, "/")
+		if len(parts) != 2 {
+			panic("expected valid repository name, but got: " + h.Repository)
+		}
+		log.Println("  ->", h.Repository, "-", h.Command.Exec, "at", h.Command.Workdir)
 	}
 
 	return a
@@ -75,12 +85,10 @@ func (a *app) gitwebhooks(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// ensure hook id matches
-	id := strings.Trim(req.URL.Path, "/")
-	h := a.find(id)
-	if h == nil {
-		log.Println("could not locate webhook, by given id:", id)
-		http.Error(w, http.StatusText(404), 404)
+	// ensure supported event type
+	if req.Header.Get("X-GitHub-Event") != "push" {
+		log.Println("github event not supported:", req.Header.Get("X-GitHub-Event"))
+		http.Error(w, http.StatusText(400), 400)
 		return
 	}
 
@@ -99,18 +107,27 @@ func (a *app) gitwebhooks(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// ensure is authorized
-	if err := h.authorized(req, body); err != nil {
-		log.Println("unauthorized:", err)
-		http.Error(w, http.StatusText(401), 401)
-		return
-	}
-
 	// read payload to struct
 	var commit payload
 	if err := json.Unmarshal(body, &commit); err != nil {
 		log.Println("failed to unmarshal payload to struct:", err)
 		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	// find hook based on repository
+	repository := commit.Repository.Owner.Name + "/" + commit.Repository.Name
+	h := a.find(repository)
+	if nil == h {
+		log.Println("unable to find hook for repository:", repository)
+		http.Error(w, http.StatusText(404), 404)
+		return
+	}
+
+	// ensure is authorized
+	if err := h.authorized(req, body); err != nil {
+		log.Println("unauthorized:", err)
+		http.Error(w, http.StatusText(401), 401)
 		return
 	}
 
@@ -124,7 +141,7 @@ func (a *app) gitwebhooks(w http.ResponseWriter, req *http.Request) {
 
 	// execute the hook command
 	if err := h.run(&commit); err != nil {
-		log.Println("failed to execute hook", id, "command:", err)
+		log.Println("failed to execute hook", h.Repository, "command:", err)
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
@@ -132,9 +149,9 @@ func (a *app) gitwebhooks(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte("OK"))
 }
 
-func (a *app) find(id string) *hook {
+func (a *app) find(repo string) *hook {
 	for _, h := range a.Webhooks {
-		if h.ID == id {
+		if h.Repository == repo {
 			return h
 		}
 	}

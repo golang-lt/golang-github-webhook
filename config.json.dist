@@ -1,7 +1,7 @@
 {
   "webhooks": [
     {
-      "id": "golang-lt",
+      "repository": "golang-lt/gophers.lt",
       "secret": "secret webhook key",
       "command": {
         "workdir": "/home/gedi/gophers.lt",

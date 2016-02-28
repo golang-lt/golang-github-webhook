@@ -13,8 +13,8 @@ import (
 )
 
 type hook struct {
-	ID, Secret string
-	Command    struct {
+	Repository, Secret string
+	Command            struct {
 		Workdir, Exec string
 	}
 }
@@ -56,7 +56,7 @@ func (h *hook) run(p *payload) error {
 	cmd := exec.Command(h.Command.Exec, args...)
 	cmd.Dir = h.Command.Workdir
 
-	info := fmt.Sprintf(`run hook "%s" workdir "%s" command: %s`, h.ID, cmd.Dir, h.Command.Exec)
+	info := fmt.Sprintf(`run hook "%s" workdir "%s" command: %s`, h.Repository, cmd.Dir, h.Command.Exec)
 	log.Println(info, strings.Join(args, " "))
 
 	out, err := cmd.CombinedOutput()
