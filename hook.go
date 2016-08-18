@@ -47,7 +47,7 @@ func (h *hook) authorized(req *http.Request, payload []byte) error {
 
 func (h *hook) run(p *payload) error {
 	args := []string{
-		p.Pusher.Name,
+		p.Pusher.Username,
 		p.Pusher.Email,
 		p.Commit.ID,
 		p.Commit.Message,

@@ -20,7 +20,7 @@ func init() {
 type payload struct {
 	Ref    string
 	Pusher struct {
-		Name, Email string
+		Username, Email, Name string
 	}
 	Commit struct {
 		ID, Message, Timestamp string
